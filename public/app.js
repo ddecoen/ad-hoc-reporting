@@ -510,15 +510,20 @@ function displayHCAnalysis(report) {
         let totalExpenses = 0;
         let foundTotalExpenseLine = false;
         
-        // First, try to find "Total - Expense" or "Total - 60000 - Operating expenses" line
+        // First, try to find the main expense total line
+        // Look for lines like "Total - 60000 - Operating expenses" or the largest expense total
+        let largestExpenseTotal = 0;
         Object.entries(dept.lineItems).forEach(([lineItem, amount]) => {
             const lineItemLower = lineItem.toLowerCase().trim();
             
-            // Look for the Total Expense line
-            if ((lineItemLower.includes('total') && lineItemLower.includes('expense') && !lineItemLower.includes('operating')) ||
-                lineItemLower === 'total - expense') {
-                totalExpenses = amount;
-                foundTotalExpenseLine = true;
+            // Look for "Total - 60000" or "Total - Operating expenses"
+            if ((lineItemLower.startsWith('total - 6') && lineItemLower.includes('operating')) ||
+                (lineItemLower.includes('total') && lineItemLower.includes('60000'))) {
+                if (Math.abs(amount) > Math.abs(largestExpenseTotal)) {
+                    totalExpenses = amount;
+                    largestExpenseTotal = amount;
+                    foundTotalExpenseLine = true;
+                }
             }
         });
         
