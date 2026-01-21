@@ -192,23 +192,37 @@ func parseQuarterlyIncomeStatement(r io.Reader) (*QuarterlyReport, error) {
 				}
 			}
 			
-			// Strategy 1: Look in row 8 for "Total" or "Amount"
+			// Strategy 1: Look in row 8 for "Total" followed by "Amount"
+			// We want the RIGHTMOST "Amount" in this department's range
 			if len(rows) > 7 {
+				lastAmountCol := -1
 				for j := colIdx; j <= deptEndCol && j < len(rows[7]); j++ {
 					subHeader := strings.ToLower(strings.TrimSpace(rows[7][j]))
-					// Look for "Total" or standalone "Amount"
-					if subHeader == "total" || 
-					   strings.HasPrefix(subHeader, "total") ||
-					   subHeader == "amount" {
+					// Look for "Amount" columns
+					if subHeader == "amount" {
+						lastAmountCol = j
+						// Don't break - keep looking for the rightmost one
+					}
+				}
+				if lastAmountCol != -1 {
+					totalCol = lastAmountCol
+				}
+			}
+			
+			// Strategy 2: Look for "Total" in row 8 if no Amount found
+			if totalCol == -1 && len(rows) > 7 {
+				for j := deptEndCol; j >= colIdx && j < len(rows[7]); j-- {
+					subHeader := strings.ToLower(strings.TrimSpace(rows[7][j]))
+					if subHeader == "total" || strings.HasPrefix(subHeader, "total") {
 						totalCol = j
 						break
 					}
 				}
 			}
 			
-			// Strategy 2: Look in row 9 for "Total" or "Amount" (some formats have it here)
+			// Strategy 3: Look in row 9 for "Total" or "Amount" (some formats have it here)
 			if totalCol == -1 && len(rows) > 8 {
-				for j := colIdx; j <= deptEndCol && j < len(rows[8]); j++ {
+				for j := deptEndCol; j >= colIdx && j < len(rows[8]); j-- {
 					subHeader := strings.ToLower(strings.TrimSpace(rows[8][j]))
 					if subHeader == "total" || 
 					   strings.HasPrefix(subHeader, "total") ||
