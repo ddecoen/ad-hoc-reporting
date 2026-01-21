@@ -227,7 +227,7 @@ func parseQuarterlyIncomeStatement(r io.Reader) (*QuarterlyReport, error) {
 			for colIdx := dept.startCol; colIdx <= dept.endCol && colIdx < len(row); colIdx++ {
 				cellValue := strings.TrimSpace(row[colIdx])
 				if cellValue != "" {
-					amount := parseAmount(cellValue)
+					amount := parseAmountQuarterly(cellValue)
 					total += amount
 				}
 			}
@@ -277,8 +277,8 @@ func isMainDepartment(header string) bool {
 	return false
 }
 
-// parseAmount converts a string to float64, handling currency and formatting
-func parseAmount(s string) float64 {
+// parseAmountQuarterly converts a string to float64, handling currency and formatting
+func parseAmountQuarterly(s string) float64 {
 	s = strings.TrimSpace(s)
 	s = strings.ReplaceAll(s, ",", "")
 	s = strings.ReplaceAll(s, "$", "")
