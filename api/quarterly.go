@@ -157,7 +157,7 @@ func parseQuarterlyIncomeStatement(r io.Reader) (*QuarterlyReport, error) {
 		endCol    int
 	}{}
 
-	// Scan row 7 for department names
+	// Scan row 7 for department names and find their "Total" column
 	for colIdx, cell := range headerRow {
 		cell = strings.TrimSpace(cell)
 		if cell == "" || colIdx < 3 {
@@ -166,14 +166,46 @@ func parseQuarterlyIncomeStatement(r io.Reader) (*QuarterlyReport, error) {
 
 		// Check if this is a main department header
 		if isMainDepartment(cell) {
-			// Find the span of this department
-			endCol := colIdx
-			for j := colIdx + 1; j < len(headerRow); j++ {
-				nextCell := strings.TrimSpace(headerRow[j])
-				if nextCell != "" && isMainDepartment(nextCell) {
-					break
+			// Find the "Total" column for this department
+			// Look in row 8 (subdepartment row) for "Total" or "Amount" keywords
+			totalCol := -1
+			
+			// Search forward from this column to find the Total column
+			searchLimit := colIdx + 20 // Look ahead up to 20 columns
+			if searchLimit > len(headerRow) {
+				searchLimit = len(headerRow)
+			}
+			
+			for j := colIdx; j < searchLimit; j++ {
+				// Check row 8 (index 7) for "Total" or "Amount"
+				if len(rows) > 7 && j < len(rows[7]) {
+					subHeader := strings.ToLower(strings.TrimSpace(rows[7][j]))
+					if strings.Contains(subHeader, "total") || 
+					   (strings.Contains(subHeader, "amount") && !strings.Contains(subHeader, "and")) {
+						totalCol = j
+						break
+					}
 				}
-				endCol = j
+				
+				// Also check if the next main department starts (to limit search)
+				if j > colIdx && j < len(headerRow) {
+					nextCell := strings.TrimSpace(headerRow[j])
+					if nextCell != "" && isMainDepartment(nextCell) {
+						break
+					}
+				}
+			}
+			
+			// If we didn't find a "Total" column, use the last column in the department range
+			if totalCol == -1 {
+				totalCol = colIdx
+				for j := colIdx + 1; j < len(headerRow); j++ {
+					nextCell := strings.TrimSpace(headerRow[j])
+					if nextCell != "" && isMainDepartment(nextCell) {
+						break
+					}
+					totalCol = j
+				}
 			}
 
 			departments = append(departments, struct {
@@ -182,8 +214,8 @@ func parseQuarterlyIncomeStatement(r io.Reader) (*QuarterlyReport, error) {
 				endCol    int
 			}{
 				name:     cell,
-				startCol: colIdx,
-				endCol:   endCol,
+				startCol: totalCol, // Use Total column as both start and end
+				endCol:   totalCol,
 			})
 		}
 	}
