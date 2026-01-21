@@ -507,26 +507,42 @@ function displayHCAnalysis(report) {
         const dept = report.departments[deptName];
         
         let hcTotal = 0;
-        let nonHcTotal = 0;
+        let totalExpenses = 0;
         
         // Categorize line items
         Object.entries(dept.lineItems).forEach(([lineItem, amount]) => {
+            const lineItemLower = lineItem.toLowerCase();
+            
+            // Skip revenue items, net income, totals, and other income
+            if (lineItemLower.includes('revenue') || 
+                lineItemLower.includes('net income') || 
+                lineItemLower.includes('net loss') ||
+                lineItemLower.includes('net ordinary') ||
+                lineItemLower.includes('other income') ||
+                lineItemLower.startsWith('total -')) {
+                return; // Skip this item
+            }
+            
             // Check if it's a 61000 series (compensation)
             const accountMatch = lineItem.match(/^(\d+)/);
             const accountNum = accountMatch ? parseInt(accountMatch[1]) : 0;
             
-            // 61000-61999 are HC (compensation), everything else is Non-HC
+            // Add to total expenses (all non-revenue items)
+            totalExpenses += amount;
+            
+            // 61000-61999 are HC (compensation)
             if (accountNum >= 61000 && accountNum < 62000) {
                 hcTotal += amount;
-            } else {
-                nonHcTotal += amount;
             }
         });
+        
+        // Non-HC = Total Expenses - HC
+        const nonHcTotal = totalExpenses - hcTotal;
         
         hcAnalysis[deptName] = {
             hc: hcTotal,
             nonHc: nonHcTotal,
-            total: hcTotal + nonHcTotal
+            total: totalExpenses
         };
     });
 
