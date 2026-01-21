@@ -300,10 +300,12 @@ func parseQuarterlyIncomeStatement(r io.Reader) (*QuarterlyReport, error) {
 				name      string
 				startCol  int
 				endCol    int
+				totalCol  int
 			}{
 				name:     cell,
 				startCol: totalCol,
 				endCol:   totalCol,
+				totalCol: totalCol,
 			})
 			
 				// Debug: Store column info
