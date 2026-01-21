@@ -2,10 +2,9 @@
   "name": "netsuite-pl-analyzer",
   "version": "1.0.0",
   "description": "NetSuite P&L Analyzer - Transform Transaction Detail reports into comprehensive P&L statements",
-  "main": "index.js",
   "scripts": {
     "dev": "vercel dev",
-    "build": "vercel build",
+    "build": "echo 'No build step needed - static HTML'",
     "deploy": "vercel --prod",
     "deploy:preview": "vercel"
   },
@@ -18,8 +17,5 @@
     "finance"
   ],
   "author": "",
-  "license": "MIT",
-  "devDependencies": {
-    "vercel": "^33.0.0"
-  }
+  "license": "MIT"
 }
