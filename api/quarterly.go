@@ -161,17 +161,53 @@ func parseQuarterlyIncomeStatement(r io.Reader) (*QuarterlyReport, error) {
 		return nil, fmt.Errorf("row 7 (department headers) not found")
 	}
 
-	headerRow := rows[6]
+	// Get merged cells to find department column ranges
+	mergeCells, _ := f.GetMergeCells(sheets[0])
 	
-	// Find department columns (skip first few columns which are account info)
+	// Find department columns
 	departments := []struct {
 		name      string
 		startCol  int
 		endCol    int
+		totalCol  int
 	}{}
 
-	// Scan row 7 for department names and find their "Total" column
-	for colIdx, cell := range headerRow {
+	// Try to use merged cells first
+	foundDepts := false
+	for _, merge := range mergeCells {
+		startCol, startRow, _ := excelize.CellNameToCoordinates(merge.GetStartAxis())
+		endCol, endRow, _ := excelize.CellNameToCoordinates(merge.GetEndAxis())
+		
+		// Check if this merge is in row 7
+		if startRow == 7 && endRow == 7 {
+			value := strings.TrimSpace(merge.GetCellValue())
+			if value != "" && isMainDepartment(value) {
+				foundDepts = true
+				// The Total column is the rightmost column (convert to 0-indexed)
+				totalCol := endCol - 1
+				
+				departments = append(departments, struct {
+					name      string
+					startCol  int
+					endCol    int
+					totalCol  int
+				}{
+					name:     value,
+					startCol: startCol - 1,
+					endCol:   endCol - 1,
+					totalCol: totalCol,
+				})
+				
+				report.Debug[fmt.Sprintf("merge_%s", value)] = fmt.Sprintf("Cols %d-%d", startCol, endCol)
+				report.Debug[fmt.Sprintf("dept_%s_col", value)] = totalCol
+			}
+		}
+	}
+	
+	// Fallback: scan row 7 if merged cells didn't work
+	if !foundDepts {
+		headerRow := rows[6]
+		for colIdx, cell := range headerRow {
 		cell = strings.TrimSpace(cell)
 		if cell == "" || colIdx < 2 { // Changed from 3 to 2 to catch earlier columns
 			continue
@@ -270,9 +306,10 @@ func parseQuarterlyIncomeStatement(r io.Reader) (*QuarterlyReport, error) {
 				endCol:   totalCol,
 			})
 			
-			// Debug: Store column info
-			debugKey := fmt.Sprintf("dept_%s_col", cell)
-			report.Debug[debugKey] = totalCol
+				// Debug: Store column info
+				debugKey := fmt.Sprintf("dept_%s_col", cell)
+				report.Debug[debugKey] = totalCol
+			}
 		}
 	}
 	
