@@ -513,21 +513,31 @@ function displayHCAnalysis(report) {
         Object.entries(dept.lineItems).forEach(([lineItem, amount]) => {
             const lineItemLower = lineItem.toLowerCase();
             
-            // Skip revenue items, net income, totals, and other income
+            // Skip these items entirely:
+            // - Revenue (40000 series)
+            // - Net Income/Loss (final totals)
+            // - "Total -" summary lines
+            // - Other income items
             if (lineItemLower.includes('revenue') || 
                 lineItemLower.includes('net income') || 
                 lineItemLower.includes('net loss') ||
                 lineItemLower.includes('net ordinary') ||
                 lineItemLower.includes('other income') ||
-                lineItemLower.startsWith('total -')) {
+                lineItemLower.includes('other expense') ||
+                lineItem.toLowerCase().trim().startsWith('total ')) {
                 return; // Skip this item
             }
             
-            // Check if it's a 61000 series (compensation)
+            // Check account number
             const accountMatch = lineItem.match(/^(\d+)/);
             const accountNum = accountMatch ? parseInt(accountMatch[1]) : 0;
             
-            // Add to total expenses (all non-revenue items)
+            // Skip if no account number found or if it's a revenue account (40000s)
+            if (accountNum === 0 || (accountNum >= 40000 && accountNum < 50000)) {
+                return;
+            }
+            
+            // This is an expense line item - add to total
             totalExpenses += amount;
             
             // 61000-61999 are HC (compensation)
