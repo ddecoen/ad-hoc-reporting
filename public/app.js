@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const uploadZone = document.getElementById('uploadZone');
     const fileInput = document.getElementById('fileInput');
     const uploadBtn = document.getElementById('uploadBtn');
+    const hcAnalysisBtn = document.getElementById('hcAnalysisBtn');
 
     // Report type selector
     document.querySelectorAll('.report-type-btn').forEach(btn => {
@@ -64,6 +65,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Upload button
     uploadBtn.addEventListener('click', uploadFile);
+    
+    // HC Analysis button
+    hcAnalysisBtn.addEventListener('click', analyzeHCvsNonHC);
 });
 
 function handleFile(file) {
@@ -89,6 +93,11 @@ function handleFile(file) {
     uploadZone.querySelector('h3').textContent = file.name;
     uploadZone.querySelector('p').textContent = `Size: ${formatFileSize(file.size)}`;
     uploadBtn.disabled = false;
+    
+    // Enable HC Analysis button only for quarterly reports
+    if (reportType === 'quarterly') {
+        hcAnalysisBtn.disabled = false;
+    }
     
     // Store file for upload
     uploadBtn.dataset.file = file.name;
@@ -420,6 +429,185 @@ function addCategoryRows(rows, categoryName, category) {
 
 function formatCurrencyExport(value) {
     return '$' + value.toFixed(2);
+}
+
+// Analyze HC vs Non-HC for quarterly income statements
+async function analyzeHCvsNonHC() {
+    const file = window.selectedFile;
+    if (!file || reportType !== 'quarterly') return;
+
+    const loading = document.getElementById('loading');
+    const uploadCard = document.querySelector('#uploadCard');
+    const errorDiv = document.getElementById('errorMessage');
+    const results = document.getElementById('results');
+
+    // Hide previous results
+    errorDiv.classList.remove('active');
+    results.classList.remove('active');
+    
+    // Show loading
+    uploadCard.style.display = 'none';
+    loading.classList.add('active');
+
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch('/api/quarterly', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || 'Failed to analyze file');
+        }
+
+        const report = await response.json();
+        currentReport = report;
+        
+        // Display HC vs Non-HC summary
+        displayHCAnalysis(report);
+        
+    } catch (error) {
+        console.error('Error:', error);
+        showError('Failed to process file: ' + error.message);
+        uploadCard.style.display = 'block';
+    } finally {
+        loading.classList.remove('active');
+    }
+}
+
+// Display HC vs Non-HC analysis
+function displayHCAnalysis(report) {
+    const results = document.getElementById('results');
+    const summaryCards = document.getElementById('summaryCards');
+    const categoriesContainer = document.getElementById('categoriesContainer');
+
+    // Clear previous results
+    summaryCards.innerHTML = '';
+    categoriesContainer.innerHTML = '';
+
+    // Company info
+    if (report.companyName || report.period) {
+        summaryCards.innerHTML += `
+            <div class="summary-card" style="grid-column: span 2;">
+                <h3>HC vs Non-HC Analysis</h3>
+                <div style="margin-top: 10px;">
+                    ${report.companyName ? `<div><strong>Company:</strong> ${report.companyName}</div>` : ''}
+                    ${report.period ? `<div><strong>Period:</strong> ${report.period}</div>` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    // Analyze each department
+    const hcAnalysis = {};
+    Object.keys(report.departments).forEach(deptName => {
+        const dept = report.departments[deptName];
+        
+        let hcTotal = 0;
+        let nonHcTotal = 0;
+        
+        // Categorize line items
+        Object.entries(dept.lineItems).forEach(([lineItem, amount]) => {
+            // Check if it's a 61000 series (compensation)
+            const accountMatch = lineItem.match(/^(\d+)/);
+            const accountNum = accountMatch ? parseInt(accountMatch[1]) : 0;
+            
+            // 61000-61999 are HC (compensation), everything else is Non-HC
+            if (accountNum >= 61000 && accountNum < 62000) {
+                hcTotal += amount;
+            } else {
+                nonHcTotal += amount;
+            }
+        });
+        
+        hcAnalysis[deptName] = {
+            hc: hcTotal,
+            nonHc: nonHcTotal,
+            total: hcTotal + nonHcTotal
+        };
+    });
+
+    // Create summary cards for each department
+    Object.keys(hcAnalysis).forEach(deptName => {
+        const analysis = hcAnalysis[deptName];
+        const card = document.createElement('div');
+        card.className = 'summary-card';
+        card.innerHTML = `
+            <h3>${deptName}</h3>
+            <div class="amount">${formatCurrency(analysis.total)}</div>
+            <div style="margin-top: 10px; font-size: 0.85rem; opacity: 0.9;">
+                HC: ${formatCurrency(analysis.hc)}<br>
+                Non-HC: ${formatCurrency(analysis.nonHc)}
+            </div>
+        `;
+        summaryCards.appendChild(card);
+    });
+
+    // Create detailed breakdown table
+    const section = document.createElement('div');
+    section.className = 'category-section';
+
+    const header = document.createElement('div');
+    header.className = 'category-header';
+    header.innerHTML = `
+        <h2>HC vs Non-HC Breakdown</h2>
+    `;
+    section.appendChild(header);
+
+    const table = document.createElement('div');
+    table.className = 'subcategories';
+
+    // Header row
+    const headerRow = document.createElement('div');
+    headerRow.className = 'subcategory-row';
+    headerRow.style.background = '#f0f0f0';
+    headerRow.style.fontWeight = 'bold';
+    headerRow.innerHTML = `
+        <div>Department</div>
+        <div class="subcategory-value">HC (61000 series)</div>
+        <div class="subcategory-value">Non-HC</div>
+        <div class="subcategory-value">Total</div>
+    `;
+    table.appendChild(headerRow);
+
+    // Add rows for each department
+    Object.keys(hcAnalysis).forEach(deptName => {
+        const analysis = hcAnalysis[deptName];
+        const row = document.createElement('div');
+        row.className = 'subcategory-row';
+        row.innerHTML = `
+            <div class="subcategory-name">${deptName}</div>
+            <div class="subcategory-value">${formatCurrency(analysis.hc)}</div>
+            <div class="subcategory-value">${formatCurrency(analysis.nonHc)}</div>
+            <div class="subcategory-value" style="font-weight: bold;">${formatCurrency(analysis.total)}</div>
+        `;
+        table.appendChild(row);
+    });
+
+    // Add total row
+    const totalHC = Object.values(hcAnalysis).reduce((sum, a) => sum + a.hc, 0);
+    const totalNonHC = Object.values(hcAnalysis).reduce((sum, a) => sum + a.nonHc, 0);
+    const totalAll = totalHC + totalNonHC;
+
+    const totalRow = document.createElement('div');
+    totalRow.className = 'subcategory-row';
+    totalRow.style.background = '#f0f0f0';
+    totalRow.style.fontWeight = 'bold';
+    totalRow.innerHTML = `
+        <div>TOTAL</div>
+        <div class="subcategory-value">${formatCurrency(totalHC)}</div>
+        <div class="subcategory-value">${formatCurrency(totalNonHC)}</div>
+        <div class="subcategory-value">${formatCurrency(totalAll)}</div>
+    `;
+    table.appendChild(totalRow);
+
+    section.appendChild(table);
+    categoriesContainer.appendChild(section);
+
+    results.classList.add('active');
 }
 
 // Display quarterly income statement results
