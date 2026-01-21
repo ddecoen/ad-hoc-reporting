@@ -314,13 +314,13 @@ func parseQuarterlyIncomeStatement(r io.Reader) (*QuarterlyReport, error) {
 		
 		rowsProcessed++
 
-		// Extract amounts for each department
+		// Extract amounts for each department using the Total column
 		for _, dept := range departments {
 			deptData := report.Departments[dept.name]
 			
-			// Get value from the Total column
-			if dept.startCol < len(row) {
-				cellValue := strings.TrimSpace(row[dept.startCol])
+			// Get value from the Total column (rightmost column of merged range)
+			if dept.totalCol < len(row) {
+				cellValue := strings.TrimSpace(row[dept.totalCol])
 				if cellValue != "" && cellValue != "-" {
 					amount := parseAmountQuarterly(cellValue)
 					if amount != 0 {
@@ -332,7 +332,7 @@ func parseQuarterlyIncomeStatement(r io.Reader) (*QuarterlyReport, error) {
 						if valuesFound <= 3 {
 							debugKey := fmt.Sprintf("sample_%d", valuesFound)
 							report.Debug[debugKey] = fmt.Sprintf("Row %d, Col %d (%s): %s = %.2f", 
-								rowIdx+1, dept.startCol, dept.name, lineItem, amount)
+								rowIdx+1, dept.totalCol, dept.name, lineItem, amount)
 						}
 					}
 				}
