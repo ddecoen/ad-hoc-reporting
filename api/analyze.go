@@ -1,13 +1,17 @@
 package handler
 
 import (
+	"bytes"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/xuri/excelize/v2"
 )
 
 // Transaction represents a NetSuite transaction detail record
@@ -75,17 +79,33 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	file, _, err := r.FormFile("file")
+	file, header, err := r.FormFile("file")
 	if err != nil {
 		http.Error(w, "Failed to get file: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 	defer file.Close()
 
-	// Parse CSV
-	transactions, err := parseCSV(file)
-	if err != nil {
-		http.Error(w, "Failed to parse CSV: "+err.Error(), http.StatusBadRequest)
+	// Determine file type and parse accordingly
+	var transactions []Transaction
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+	
+	if ext == ".xlsx" || ext == ".xls" {
+		// Parse Excel
+		transactions, err = parseExcel(file)
+		if err != nil {
+			http.Error(w, "Failed to parse Excel: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+	} else if ext == ".csv" {
+		// Parse CSV
+		transactions, err = parseCSV(file)
+		if err != nil {
+			http.Error(w, "Failed to parse CSV: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+	} else {
+		http.Error(w, "Unsupported file type. Please upload a CSV or Excel file.", http.StatusBadRequest)
 		return
 	}
 
@@ -123,6 +143,75 @@ func parseCSV(r io.Reader) ([]Transaction, error) {
 		}
 		if err != nil {
 			return nil, fmt.Errorf("failed to read record: %w", err)
+		}
+
+		// Parse amount
+		amountStr := getField(record, colIndex, "amount", "debit", "credit")
+		amount, _ := parseAmount(amountStr)
+
+		trans := Transaction{
+			Date:       getField(record, colIndex, "date", "transaction date"),
+			Type:       getField(record, colIndex, "type", "transaction type"),
+			DocNumber:  getField(record, colIndex, "document number", "doc number", "number"),
+			Name:       getField(record, colIndex, "name", "vendor", "employee", "customer"),
+			Account:    getField(record, colIndex, "account", "account name"),
+			Department: getField(record, colIndex, "department", "dept"),
+			Class:      getField(record, colIndex, "class", "classification"),
+			Amount:     amount,
+			Memo:       getField(record, colIndex, "memo", "description"),
+		}
+
+		transactions = append(transactions, trans)
+	}
+
+	return transactions, nil
+}
+
+// parseExcel reads an Excel file and returns transactions
+func parseExcel(r io.Reader) ([]Transaction, error) {
+	// Read the entire file into memory
+	buf := new(bytes.Buffer)
+	_, err := io.Copy(buf, r)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+
+	// Open Excel file
+	f, err := excelize.OpenReader(buf)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open Excel file: %w", err)
+	}
+	defer f.Close()
+
+	// Get the first sheet
+	sheets := f.GetSheetList()
+	if len(sheets) == 0 {
+		return nil, fmt.Errorf("no sheets found in Excel file")
+	}
+
+	// Read all rows from the first sheet
+	rows, err := f.GetRows(sheets[0])
+	if err != nil {
+		return nil, fmt.Errorf("failed to read rows: %w", err)
+	}
+
+	if len(rows) == 0 {
+		return nil, fmt.Errorf("no data found in Excel file")
+	}
+
+	// Find column indices from header
+	header := rows[0]
+	colIndex := make(map[string]int)
+	for i, col := range header {
+		colIndex[strings.ToLower(strings.TrimSpace(col))] = i
+	}
+
+	// Parse data rows
+	var transactions []Transaction
+	for i := 1; i < len(rows); i++ {
+		record := rows[i]
+		if len(record) == 0 {
+			continue
 		}
 
 		// Parse amount

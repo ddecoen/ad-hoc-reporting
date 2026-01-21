@@ -4,6 +4,11 @@ A serverless web application built with Go and deployed on Vercel that transform
 
 ## Features
 
+✨ **Multiple File Format Support**
+- CSV upload support
+- Excel (.xlsx, .xls) upload support
+- Automatic format detection
+
 ✨ **Comprehensive P&L Breakdown**
 - Revenue, COGS, Gross Profit, and Gross Margin
 - Operating Expenses (OpEx) categorized into:
@@ -82,12 +87,12 @@ A serverless web application built with Go and deployed on Vercel that transform
    - Amount / Debit / Credit
    - Memo / Description
 
-3. Export as **CSV**
+3. Export as **CSV** or **Excel** (.xlsx)
 
 ### Analyzing Your Data
 
 1. Open the web app
-2. Drag and drop your CSV file (or click to browse)
+2. Drag and drop your CSV or Excel file (or click to browse)
 3. Click "Analyze P&L"
 4. View your comprehensive P&L breakdown
 5. Export results to CSV if needed
@@ -191,7 +196,7 @@ Processes a NetSuite CSV file and returns P&L JSON.
 - **Backend**: Go 1.21+
 - **Frontend**: Vanilla JavaScript, HTML5, CSS3
 - **Deployment**: Vercel Serverless Functions
-- **File Processing**: Go CSV parser
+- **File Processing**: Go CSV parser, Excel parser (excelize library)
 
 ## Configuration
 

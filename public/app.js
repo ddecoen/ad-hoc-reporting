@@ -41,8 +41,11 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function handleFile(file) {
-    if (!file.name.endsWith('.csv')) {
-        showError('Please select a CSV file');
+    const validExtensions = ['.csv', '.xlsx', '.xls'];
+    const fileExt = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
+    
+    if (!validExtensions.includes(fileExt)) {
+        showError('Please select a CSV or Excel file (.csv, .xlsx, .xls)');
         return;
     }
 

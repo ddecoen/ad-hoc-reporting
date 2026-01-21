@@ -7,7 +7,8 @@ A complete, production-ready serverless web application that transforms NetSuite
 ## Key Features Delivered
 
 ### ✅ Core Functionality
-- CSV upload (drag-and-drop or click to browse)
+- CSV and Excel upload support (drag-and-drop or click to browse)
+- Automatic file format detection
 - Automatic transaction categorization
 - P&L breakdown by major OpEx lines:
   - COGS
@@ -70,8 +71,8 @@ sample-data.csv        # 25 rows - Example NetSuite data
 
 ## How It Works
 
-1. **User uploads** NetSuite Transaction Detail CSV
-2. **Backend parses** CSV and extracts transactions
+1. **User uploads** NetSuite Transaction Detail (CSV or Excel)
+2. **Backend parses** file and extracts transactions
 3. **Classification engine** categorizes each transaction:
    - Revenue vs. expense
    - COGS vs. OpEx category (S&M, R&D, G&A)
@@ -201,7 +202,7 @@ Use the included `sample-data.csv` to test:
 ## Success Metrics
 
 ### What You Can Now Do:
-✅ Upload NetSuite CSVs and get instant P&L reports
+✅ Upload NetSuite files (CSV or Excel) and get instant P&L reports
 ✅ See headcount vs. non-headcount breakdown
 ✅ Identify spending by department/function
 ✅ Export results for further analysis

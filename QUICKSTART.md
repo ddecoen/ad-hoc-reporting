@@ -84,12 +84,12 @@ vercel --prod
 
 3. Apply filters for your desired time period (e.g., "This Year")
 
-4. Run the search and click **Export → CSV**
+4. Run the search and click **Export → CSV** or **Export → Excel**
 
 ## Step 4: Analyze Your Data
 
 1. Open your deployed app URL
-2. Drag and drop your CSV file
+2. Drag and drop your CSV or Excel file
 3. Click "Analyze P&L"
 4. View your results!
 
@@ -136,9 +136,9 @@ Expected results:
 
 ## Common Issues & Solutions
 
-### ❌ "Failed to parse CSV"
+### ❌ "Failed to parse file"
 
-**Solution**: Ensure your CSV has a header row and includes these columns:
+**Solution**: Ensure your file (CSV or Excel) has a header row and includes these columns:
 - Account (required)
 - Amount (required)
 - Department (recommended)
