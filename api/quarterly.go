@@ -33,6 +33,7 @@ type QuarterlyReport struct {
 	Departments  map[string]*DepartmentData `json:"departments"`
 	RevenueTotal float64                   `json:"revenueTotal"`
 	Summary      map[string]float64        `json:"summary"`
+	Debug        map[string]interface{}    `json:"debug,omitempty"`
 }
 
 // QuarterlyHandler processes quarterly income statement Excel files
@@ -121,6 +122,18 @@ func parseQuarterlyIncomeStatement(r io.Reader) (*QuarterlyReport, error) {
 	report := &QuarterlyReport{
 		Departments: make(map[string]*DepartmentData),
 		Summary:     make(map[string]float64),
+		Debug:       make(map[string]interface{}),
+	}
+	
+	// Debug: Store row count
+	report.Debug["totalRows"] = len(rows)
+	report.Debug["row7"] = ""
+	report.Debug["row8"] = ""
+	if len(rows) > 6 {
+		report.Debug["row7"] = fmt.Sprintf("%v", rows[6])
+	}
+	if len(rows) > 7 {
+		report.Debug["row8"] = fmt.Sprintf("%v", rows[7])
 	}
 
 	// Find company name (usually in rows 1-3)
@@ -242,8 +255,15 @@ func parseQuarterlyIncomeStatement(r io.Reader) (*QuarterlyReport, error) {
 				startCol: totalCol,
 				endCol:   totalCol,
 			})
+			
+			// Debug: Store column info
+			debugKey := fmt.Sprintf("dept_%s_col", cell)
+			report.Debug[debugKey] = totalCol
 		}
 	}
+	
+	// Debug: Store department count
+	report.Debug["departmentCount"] = len(departments)
 
 	// Initialize department data structures
 	for _, dept := range departments {
@@ -255,6 +275,9 @@ func parseQuarterlyIncomeStatement(r io.Reader) (*QuarterlyReport, error) {
 	}
 
 	// Parse data rows (starting from row 10+)
+	rowsProcessed := 0
+	valuesFound := 0
+	
 	for rowIdx := 9; rowIdx < len(rows); rowIdx++ {
 		row := rows[rowIdx]
 		if len(row) == 0 {
@@ -274,27 +297,38 @@ func parseQuarterlyIncomeStatement(r io.Reader) (*QuarterlyReport, error) {
 		if lineItem == "" || strings.Contains(lineItem, "Financial") {
 			continue
 		}
+		
+		rowsProcessed++
 
 		// Extract amounts for each department
 		for _, dept := range departments {
 			deptData := report.Departments[dept.name]
 			
-			// Sum all amounts in this department's column range
-			var total float64
-			for colIdx := dept.startCol; colIdx <= dept.endCol && colIdx < len(row); colIdx++ {
-				cellValue := strings.TrimSpace(row[colIdx])
-				if cellValue != "" {
+			// Get value from the Total column
+			if dept.startCol < len(row) {
+				cellValue := strings.TrimSpace(row[dept.startCol])
+				if cellValue != "" && cellValue != "-" {
 					amount := parseAmountQuarterly(cellValue)
-					total += amount
+					if amount != 0 {
+						deptData.LineItems[lineItem] = amount
+						deptData.Total += amount
+						valuesFound++
+						
+						// Debug: Store first few values
+						if valuesFound <= 3 {
+							debugKey := fmt.Sprintf("sample_%d", valuesFound)
+							report.Debug[debugKey] = fmt.Sprintf("Row %d, Col %d (%s): %s = %.2f", 
+								rowIdx+1, dept.startCol, dept.name, lineItem, amount)
+						}
+					}
 				}
-			}
-
-			if total != 0 {
-				deptData.LineItems[lineItem] = total
-				deptData.Total += total
 			}
 		}
 	}
+	
+	// Debug: Store processing stats
+	report.Debug["rowsProcessed"] = rowsProcessed
+	report.Debug["valuesFound"] = valuesFound
 
 	// Calculate summary metrics
 	for deptName, deptData := range report.Departments {
