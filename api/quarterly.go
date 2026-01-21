@@ -387,7 +387,6 @@ func parseQuarterlyIncomeStatement(r io.Reader) (*QuarterlyReport, error) {
 	for deptName, deptData := range report.Departments {
 		// Look for "Net Income" or "Net Loss" line item (be specific!)
 		netIncomeValue := deptData.Total // Default to sum of all
-		foundNetIncome := false
 		
 		for lineItem, amount := range deptData.LineItems {
 			lineItemLower := strings.ToLower(strings.TrimSpace(lineItem))
@@ -400,14 +399,12 @@ func parseQuarterlyIncomeStatement(r io.Reader) (*QuarterlyReport, error) {
 			   !strings.Contains(lineItemLower, "other") &&
 			   !strings.Contains(lineItemLower, "ordinary") {
 				netIncomeValue = amount
-				foundNetIncome = true
 				break
 			}
 			
 			// Also check for exact matches
 			if lineItemLower == "net income" || lineItemLower == "net loss" {
 				netIncomeValue = amount
-				foundNetIncome = true
 				break
 			}
 		}
