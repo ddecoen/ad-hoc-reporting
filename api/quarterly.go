@@ -383,11 +383,27 @@ func parseQuarterlyIncomeStatement(r io.Reader) (*QuarterlyReport, error) {
 	report.Debug["rowsProcessed"] = rowsProcessed
 	report.Debug["valuesFound"] = valuesFound
 
-	// Calculate summary metrics
+	// Calculate summary metrics - use Net Income/Loss as the total
 	for deptName, deptData := range report.Departments {
-		report.Summary[deptName] = deptData.Total
+		// Look for "Net Income" or "Net Loss" line item
+		netIncomeValue := deptData.Total // Default to sum of all
+		for lineItem, amount := range deptData.LineItems {
+			lineItemLower := strings.ToLower(lineItem)
+			if strings.Contains(lineItemLower, "net income") || 
+			   strings.Contains(lineItemLower, "net loss") ||
+			   (strings.HasPrefix(lineItemLower, "net") && 
+			    (strings.Contains(lineItemLower, "income") || strings.Contains(lineItemLower, "loss"))) {
+				netIncomeValue = amount
+				break
+			}
+		}
+		
+		// Use Net Income as the department total
+		deptData.Total = netIncomeValue
+		report.Summary[deptName] = netIncomeValue
+		
 		if strings.Contains(strings.ToLower(deptName), "revenue") {
-			report.RevenueTotal += deptData.Total
+			report.RevenueTotal += netIncomeValue
 		}
 	}
 

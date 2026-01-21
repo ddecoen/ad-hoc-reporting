@@ -454,10 +454,15 @@ function displayQuarterlyResults(report) {
             `;
             table.appendChild(headerRow);
 
-            // Sort line items by absolute value
-            const sortedItems = Object.entries(dept.lineItems).sort((a, b) => 
-                Math.abs(b[1]) - Math.abs(a[1])
-            );
+            // Sort line items by account number (ascending)
+            const sortedItems = Object.entries(dept.lineItems).sort((a, b) => {
+                // Extract account numbers from line items (e.g., "40000" from "40000 - Revenue")
+                const getAccountNum = (item) => {
+                    const match = item.match(/^(\d+)/);
+                    return match ? parseInt(match[1]) : 99999;
+                };
+                return getAccountNum(a[0]) - getAccountNum(b[0]);
+            });
 
             // Add line item rows
             sortedItems.forEach(([lineItem, amount]) => {
