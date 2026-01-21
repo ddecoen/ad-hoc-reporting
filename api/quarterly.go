@@ -160,52 +160,77 @@ func parseQuarterlyIncomeStatement(r io.Reader) (*QuarterlyReport, error) {
 	// Scan row 7 for department names and find their "Total" column
 	for colIdx, cell := range headerRow {
 		cell = strings.TrimSpace(cell)
-		if cell == "" || colIdx < 3 {
+		if cell == "" || colIdx < 2 { // Changed from 3 to 2 to catch earlier columns
 			continue
 		}
 
 		// Check if this is a main department header
 		if isMainDepartment(cell) {
 			// Find the "Total" column for this department
-			// Look in row 8 (subdepartment row) for "Total" or "Amount" keywords
 			totalCol := -1
 			
-			// Search forward from this column to find the Total column
-			searchLimit := colIdx + 20 // Look ahead up to 20 columns
-			if searchLimit > len(headerRow) {
-				searchLimit = len(headerRow)
+			// First, find the end of this department (where next dept starts)
+			deptEndCol := len(headerRow) - 1
+			for j := colIdx + 1; j < len(headerRow); j++ {
+				nextCell := strings.TrimSpace(headerRow[j])
+				if nextCell != "" && isMainDepartment(nextCell) {
+					deptEndCol = j - 1
+					break
+				}
 			}
 			
-			for j := colIdx; j < searchLimit; j++ {
-				// Check row 8 (index 7) for "Total" or "Amount"
-				if len(rows) > 7 && j < len(rows[7]) {
+			// Strategy 1: Look in row 8 for "Total" or "Amount"
+			if len(rows) > 7 {
+				for j := colIdx; j <= deptEndCol && j < len(rows[7]); j++ {
 					subHeader := strings.ToLower(strings.TrimSpace(rows[7][j]))
-					if strings.Contains(subHeader, "total") || 
-					   (strings.Contains(subHeader, "amount") && !strings.Contains(subHeader, "and")) {
+					// Look for "Total" or standalone "Amount"
+					if subHeader == "total" || 
+					   strings.HasPrefix(subHeader, "total") ||
+					   subHeader == "amount" {
 						totalCol = j
 						break
 					}
 				}
-				
-				// Also check if the next main department starts (to limit search)
-				if j > colIdx && j < len(headerRow) {
-					nextCell := strings.TrimSpace(headerRow[j])
-					if nextCell != "" && isMainDepartment(nextCell) {
+			}
+			
+			// Strategy 2: Look in row 9 for "Total" or "Amount" (some formats have it here)
+			if totalCol == -1 && len(rows) > 8 {
+				for j := colIdx; j <= deptEndCol && j < len(rows[8]); j++ {
+					subHeader := strings.ToLower(strings.TrimSpace(rows[8][j]))
+					if subHeader == "total" || 
+					   strings.HasPrefix(subHeader, "total") ||
+					   subHeader == "amount" {
+						totalCol = j
 						break
 					}
 				}
 			}
 			
-			// If we didn't find a "Total" column, use the last column in the department range
+			// Strategy 3: Use the last non-empty column in the department range
 			if totalCol == -1 {
-				totalCol = colIdx
-				for j := colIdx + 1; j < len(headerRow); j++ {
-					nextCell := strings.TrimSpace(headerRow[j])
-					if nextCell != "" && isMainDepartment(nextCell) {
+				// Find the rightmost column with data in this department
+				for j := deptEndCol; j >= colIdx; j-- {
+					hasData := false
+					// Check if this column has numeric data in rows 10-15
+					for rowIdx := 9; rowIdx < 15 && rowIdx < len(rows); rowIdx++ {
+						if j < len(rows[rowIdx]) {
+							val := strings.TrimSpace(rows[rowIdx][j])
+							if val != "" && val != "-" {
+								hasData = true
+								break
+							}
+						}
+					}
+					if hasData {
+						totalCol = j
 						break
 					}
-					totalCol = j
 				}
+			}
+			
+			// Fallback: use department start column
+			if totalCol == -1 {
+				totalCol = colIdx
 			}
 
 			departments = append(departments, struct {
@@ -214,7 +239,7 @@ func parseQuarterlyIncomeStatement(r io.Reader) (*QuarterlyReport, error) {
 				endCol    int
 			}{
 				name:     cell,
-				startCol: totalCol, // Use Total column as both start and end
+				startCol: totalCol,
 				endCol:   totalCol,
 			})
 		}
@@ -286,6 +311,7 @@ func parseQuarterlyIncomeStatement(r io.Reader) (*QuarterlyReport, error) {
 func isMainDepartment(header string) bool {
 	header = strings.ToLower(strings.TrimSpace(header))
 	
+	// Direct matches
 	mainDepts := []string{
 		"general and administrative",
 		"general & administrative",
@@ -301,9 +327,29 @@ func isMainDepartment(header string) bool {
 	}
 
 	for _, dept := range mainDepts {
-		if strings.Contains(header, dept) {
+		if header == dept {
 			return true
 		}
+	}
+	
+	// Partial matches (more flexible)
+	if strings.Contains(header, "general") && strings.Contains(header, "administrative") {
+		return true
+	}
+	if strings.Contains(header, "g&a") {
+		return true
+	}
+	if header == "marketing" {
+		return true
+	}
+	if strings.Contains(header, "research") && strings.Contains(header, "development") {
+		return true
+	}
+	if header == "r&d" {
+		return true
+	}
+	if header == "revenue" || header == "revenues" {
+		return true
 	}
 
 	return false
