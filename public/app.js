@@ -1,10 +1,36 @@
 let currentReport = null;
+let reportType = 'transaction'; // Default to transaction detail
 
 // Initialize drag and drop
 document.addEventListener('DOMContentLoaded', function() {
     const uploadZone = document.getElementById('uploadZone');
     const fileInput = document.getElementById('fileInput');
     const uploadBtn = document.getElementById('uploadBtn');
+
+    // Report type selector
+    document.querySelectorAll('.report-type-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.report-type-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            reportType = this.dataset.type;
+            
+            // Update file acceptance and UI text
+            if (reportType === 'quarterly') {
+                fileInput.accept = '.xlsx,.xls';
+                document.querySelector('#uploadZone p').textContent = 'Supported formats: Excel (.xlsx, .xls)';
+            } else {
+                fileInput.accept = '.csv,.xlsx,.xls';
+                document.querySelector('#uploadZone p').textContent = 'Supported formats: CSV, Excel (.xlsx, .xls)';
+            }
+            
+            // Reset upload if file selected
+            if (window.selectedFile) {
+                window.selectedFile = null;
+                uploadBtn.disabled = true;
+                document.querySelector('#uploadZone h3').textContent = 'Drop your file here';
+            }
+        });
+    });
 
     // Click to upload
     uploadZone.addEventListener('click', () => fileInput.click());
@@ -41,12 +67,20 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function handleFile(file) {
-    const validExtensions = ['.csv', '.xlsx', '.xls'];
     const fileExt = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
     
-    if (!validExtensions.includes(fileExt)) {
-        showError('Please select a CSV or Excel file (.csv, .xlsx, .xls)');
-        return;
+    // Validate based on report type
+    if (reportType === 'quarterly') {
+        if (fileExt !== '.xlsx' && fileExt !== '.xls') {
+            showError('Quarterly Income Statements must be Excel files (.xlsx, .xls)');
+            return;
+        }
+    } else {
+        const validExtensions = ['.csv', '.xlsx', '.xls'];
+        if (!validExtensions.includes(fileExt)) {
+            showError('Please select a CSV or Excel file (.csv, .xlsx, .xls)');
+            return;
+        }
     }
 
     const uploadBtn = document.getElementById('uploadBtn');
@@ -88,7 +122,10 @@ async function uploadFile() {
         const formData = new FormData();
         formData.append('file', file);
 
-        const response = await fetch('/api/analyze', {
+        // Use appropriate endpoint based on report type
+        const endpoint = reportType === 'quarterly' ? '/api/quarterly' : '/api/analyze';
+        
+        const response = await fetch(endpoint, {
             method: 'POST',
             body: formData
         });
@@ -101,8 +138,12 @@ async function uploadFile() {
         const report = await response.json();
         currentReport = report;
         
-        // Display results
-        displayResults(report);
+        // Display results based on report type
+        if (reportType === 'quarterly') {
+            displayQuarterlyResults(report);
+        } else {
+            displayResults(report);
+        }
         
     } catch (error) {
         console.error('Error:', error);
@@ -340,4 +381,102 @@ function addCategoryRows(rows, categoryName, category) {
 
 function formatCurrencyExport(value) {
     return '$' + value.toFixed(2);
+}
+
+// Display quarterly income statement results
+function displayQuarterlyResults(report) {
+    const results = document.getElementById('results');
+    const summaryCards = document.getElementById('summaryCards');
+    const categoriesContainer = document.getElementById('categoriesContainer');
+
+    // Clear previous results
+    summaryCards.innerHTML = '';
+    categoriesContainer.innerHTML = '';
+
+    // Summary cards - show department totals
+    const summaryHtml = [];
+    
+    // Company info card
+    if (report.companyName || report.period) {
+        summaryCards.innerHTML += `
+            <div class="summary-card" style="grid-column: span 2;">
+                <h3>Report Details</h3>
+                <div style="margin-top: 10px;">
+                    ${report.companyName ? `<div><strong>Company:</strong> ${report.companyName}</div>` : ''}
+                    ${report.period ? `<div><strong>Period:</strong> ${report.period}</div>` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    // Department summary cards
+    Object.keys(report.departments).forEach(deptName => {
+        const dept = report.departments[deptName];
+        const card = document.createElement('div');
+        card.className = 'summary-card';
+        card.innerHTML = `
+            <h3>${deptName}</h3>
+            <div class="amount">${formatCurrency(dept.total)}</div>
+        `;
+        summaryCards.appendChild(card);
+    });
+
+    // Detailed breakdown by department
+    Object.keys(report.departments).forEach(deptName => {
+        const dept = report.departments[deptName];
+        const section = document.createElement('div');
+        section.className = 'category-section';
+
+        // Department header
+        const header = document.createElement('div');
+        header.className = 'category-header';
+        header.innerHTML = `
+            <h2>${deptName}</h2>
+            <div style="font-size: 1.3rem; font-weight: bold; color: #667eea;">
+                ${formatCurrency(dept.total)}
+            </div>
+        `;
+        section.appendChild(header);
+
+        // Line items table
+        if (dept.lineItems && Object.keys(dept.lineItems).length > 0) {
+            const table = document.createElement('div');
+            table.className = 'subcategories';
+
+            // Header row
+            const headerRow = document.createElement('div');
+            headerRow.className = 'subcategory-row';
+            headerRow.style.background = '#f0f0f0';
+            headerRow.style.fontWeight = 'bold';
+            headerRow.innerHTML = `
+                <div style="grid-column: span 3;">Line Item</div>
+                <div class="subcategory-value">Amount</div>
+            `;
+            table.appendChild(headerRow);
+
+            // Sort line items by absolute value
+            const sortedItems = Object.entries(dept.lineItems).sort((a, b) => 
+                Math.abs(b[1]) - Math.abs(a[1])
+            );
+
+            // Add line item rows
+            sortedItems.forEach(([lineItem, amount]) => {
+                if (amount !== 0) {
+                    const row = document.createElement('div');
+                    row.className = 'subcategory-row';
+                    row.innerHTML = `
+                        <div class="subcategory-name" style="grid-column: span 3;">${lineItem}</div>
+                        <div class="subcategory-value" style="font-weight: bold;">${formatCurrency(amount)}</div>
+                    `;
+                    table.appendChild(row);
+                }
+            });
+
+            section.appendChild(table);
+        }
+
+        categoriesContainer.appendChild(section);
+    });
+
+    results.classList.add('active');
 }

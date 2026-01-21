@@ -48,6 +48,33 @@
             margin-bottom: 30px;
         }
 
+        .report-type-btn {
+            flex: 1;
+            max-width: 300px;
+            padding: 30px 20px;
+            background: #f8f9ff;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            font-size: 1rem;
+            color: #333;
+        }
+
+        .report-type-btn:hover {
+            border-color: #667eea;
+            background: #e8ebff;
+            transform: translateY(-2px);
+        }
+
+        .report-type-btn.active {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
         .upload-zone {
             border: 3px dashed #667eea;
             border-radius: 8px;
@@ -310,10 +337,27 @@
     <div class="container">
         <div class="header">
             <h1>📊 NetSuite P&L Analyzer</h1>
-            <p>Upload your Transaction Detail report to generate a detailed P&L breakdown</p>
+            <p>Upload your reports to generate detailed financial analysis</p>
         </div>
 
+        <!-- Report Type Selector -->
         <div class="upload-card">
+            <h2 style="text-align: center; margin-bottom: 20px; color: #333;">Select Report Type</h2>
+            <div style="display: flex; gap: 20px; justify-content: center; margin-bottom: 30px;">
+                <button class="report-type-btn active" data-type="transaction">
+                    <span style="font-size: 2rem;">📄</span>
+                    <div style="margin-top: 10px;">Transaction Detail</div>
+                    <div style="font-size: 0.85rem; opacity: 0.8;">CSV or Excel with detailed transactions</div>
+                </button>
+                <button class="report-type-btn" data-type="quarterly">
+                    <span style="font-size: 2rem;">📊</span>
+                    <div style="margin-top: 10px;">Quarterly Income Statement</div>
+                    <div style="font-size: 0.85rem; opacity: 0.8;">Excel with department hierarchy</div>
+                </button>
+            </div>
+        </div>
+
+        <div class="upload-card" id="uploadCard">
             <div class="upload-zone" id="uploadZone">
                 <div class="upload-icon">📁</div>
                 <h3>Drop your file here</h3>
