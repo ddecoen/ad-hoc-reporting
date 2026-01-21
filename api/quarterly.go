@@ -385,15 +385,29 @@ func parseQuarterlyIncomeStatement(r io.Reader) (*QuarterlyReport, error) {
 
 	// Calculate summary metrics - use Net Income/Loss as the total
 	for deptName, deptData := range report.Departments {
-		// Look for "Net Income" or "Net Loss" line item
+		// Look for "Net Income" or "Net Loss" line item (be specific!)
 		netIncomeValue := deptData.Total // Default to sum of all
+		foundNetIncome := false
+		
 		for lineItem, amount := range deptData.LineItems {
-			lineItemLower := strings.ToLower(lineItem)
-			if strings.Contains(lineItemLower, "net income") || 
-			   strings.Contains(lineItemLower, "net loss") ||
-			   (strings.HasPrefix(lineItemLower, "net") && 
-			    (strings.Contains(lineItemLower, "income") || strings.Contains(lineItemLower, "loss"))) {
+			lineItemLower := strings.ToLower(strings.TrimSpace(lineItem))
+			
+			// Must start with "net" and contain "income" or "loss"
+			// Exclude "Total - Other Income" and similar
+			if strings.HasPrefix(lineItemLower, "net ") && 
+			   (strings.Contains(lineItemLower, "income") || 
+			    strings.Contains(lineItemLower, "loss")) &&
+			   !strings.Contains(lineItemLower, "other") &&
+			   !strings.Contains(lineItemLower, "ordinary") {
 				netIncomeValue = amount
+				foundNetIncome = true
+				break
+			}
+			
+			// Also check for exact matches
+			if lineItemLower == "net income" || lineItemLower == "net loss" {
+				netIncomeValue = amount
+				foundNetIncome = true
 				break
 			}
 		}
