@@ -508,37 +508,49 @@ function displayHCAnalysis(report) {
         
         let hcTotal = 0;
         let totalExpenses = 0;
+        let foundTotalExpenseLine = false;
         
-        // Categorize line items
+        // First, try to find "Total - Expense" or "Total - 60000 - Operating expenses" line
         Object.entries(dept.lineItems).forEach(([lineItem, amount]) => {
-            const lineItemLower = lineItem.toLowerCase();
+            const lineItemLower = lineItem.toLowerCase().trim();
             
-            // Skip these items entirely:
-            // - Revenue (40000 series)
-            // - Net Income/Loss (final totals)
-            // - "Total -" summary lines
-            // - Other income items
-            if (lineItemLower.includes('revenue') || 
-                lineItemLower.includes('net income') || 
-                lineItemLower.includes('net loss') ||
-                lineItemLower.includes('net ordinary') ||
-                lineItemLower.includes('other income') ||
-                lineItemLower.includes('other expense') ||
-                lineItem.toLowerCase().trim().startsWith('total ')) {
-                return; // Skip this item
+            // Look for the Total Expense line
+            if ((lineItemLower.includes('total') && lineItemLower.includes('expense') && !lineItemLower.includes('operating')) ||
+                lineItemLower === 'total - expense') {
+                totalExpenses = amount;
+                foundTotalExpenseLine = true;
             }
-            
-            // Check account number
+        });
+        
+        // If we didn't find a Total Expense line, calculate it manually
+        if (!foundTotalExpenseLine) {
+            Object.entries(dept.lineItems).forEach(([lineItem, amount]) => {
+                const lineItemLower = lineItem.toLowerCase().trim();
+                
+                // Skip revenue, net income, and summary lines
+                if (lineItemLower.includes('revenue') || 
+                    lineItemLower.includes('net income') || 
+                    lineItemLower.includes('net loss') ||
+                    lineItemLower.includes('net ordinary') ||
+                    lineItemLower.includes('other income') ||
+                    lineItemLower.startsWith('total ')) {
+                    return;
+                }
+                
+                // Check account number - only include expense accounts (60000+)
+                const accountMatch = lineItem.match(/^(\d+)/);
+                const accountNum = accountMatch ? parseInt(accountMatch[1]) : 0;
+                
+                if (accountNum >= 60000 && accountNum < 70000) {
+                    totalExpenses += amount;
+                }
+            });
+        }
+        
+        // Calculate HC (61000 series)
+        Object.entries(dept.lineItems).forEach(([lineItem, amount]) => {
             const accountMatch = lineItem.match(/^(\d+)/);
             const accountNum = accountMatch ? parseInt(accountMatch[1]) : 0;
-            
-            // Skip if no account number found or if it's a revenue account (40000s)
-            if (accountNum === 0 || (accountNum >= 40000 && accountNum < 50000)) {
-                return;
-            }
-            
-            // This is an expense line item - add to total
-            totalExpenses += amount;
             
             // 61000-61999 are HC (compensation)
             if (accountNum >= 61000 && accountNum < 62000) {
