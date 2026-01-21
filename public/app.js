@@ -300,37 +300,75 @@ function exportToCSV() {
 
     const rows = [];
     
-    // Header
-    rows.push(['NetSuite P&L Report']);
-    rows.push([]);
+    // Check if this is a quarterly report or transaction detail report
+    const isQuarterly = reportType === 'quarterly';
     
-    // Summary
-    rows.push(['Summary']);
-    rows.push(['Metric', 'Amount']);
-    rows.push(['Revenue', formatCurrencyExport(currentReport.revenue)]);
-    rows.push(['COGS', formatCurrencyExport(currentReport.cogs.total)]);
-    rows.push(['Gross Profit', formatCurrencyExport(currentReport.grossProfit)]);
-    rows.push(['Gross Margin', currentReport.grossMargin.toFixed(2) + '%']);
-    rows.push(['Total OpEx', formatCurrencyExport(currentReport.totalOpex)]);
-    rows.push(['EBITDA', formatCurrencyExport(currentReport.ebitda)]);
-    rows.push([]);
-
-    // COGS Detail
-    rows.push(['COGS Breakdown']);
-    rows.push(['Category', 'Subcategory', 'Headcount', 'Non-Headcount', 'Total']);
-    addCategoryRows(rows, 'COGS', currentReport.cogs);
-    rows.push([]);
-
-    // OpEx Detail
-    const opexOrder = ['S&M', 'R&D', 'G&A'];
-    opexOrder.forEach(catName => {
-        if (currentReport.opex[catName]) {
-            rows.push([`${catName} Breakdown`]);
-            rows.push(['Category', 'Subcategory', 'Headcount', 'Non-Headcount', 'Total']);
-            addCategoryRows(rows, catName, currentReport.opex[catName]);
-            rows.push([]);
+    if (isQuarterly) {
+        // Quarterly Income Statement Export
+        rows.push(['Quarterly Income Statement']);
+        if (currentReport.companyName) {
+            rows.push(['Company', currentReport.companyName]);
         }
-    });
+        if (currentReport.period) {
+            rows.push(['Period', currentReport.period]);
+        }
+        rows.push([]);
+        
+        // Export each department
+        Object.keys(currentReport.departments).forEach(deptName => {
+            const dept = currentReport.departments[deptName];
+            
+            rows.push([deptName, formatCurrencyExport(dept.total)]);
+            rows.push(['Line Item', 'Amount']);
+            
+            // Sort line items by account number
+            const sortedItems = Object.entries(dept.lineItems).sort((a, b) => {
+                const getAccountNum = (item) => {
+                    const match = item.match(/^(\d+)/);
+                    return match ? parseInt(match[1]) : 99999;
+                };
+                return getAccountNum(a[0]) - getAccountNum(b[0]);
+            });
+            
+            sortedItems.forEach(([lineItem, amount]) => {
+                rows.push([lineItem, formatCurrencyExport(amount)]);
+            });
+            
+            rows.push([]);
+        });
+    } else {
+        // Transaction Detail P&L Export
+        rows.push(['NetSuite P&L Report']);
+        rows.push([]);
+        
+        // Summary
+        rows.push(['Summary']);
+        rows.push(['Metric', 'Amount']);
+        rows.push(['Revenue', formatCurrencyExport(currentReport.revenue)]);
+        rows.push(['COGS', formatCurrencyExport(currentReport.cogs.total)]);
+        rows.push(['Gross Profit', formatCurrencyExport(currentReport.grossProfit)]);
+        rows.push(['Gross Margin', currentReport.grossMargin.toFixed(2) + '%']);
+        rows.push(['Total OpEx', formatCurrencyExport(currentReport.totalOpex)]);
+        rows.push(['EBITDA', formatCurrencyExport(currentReport.ebitda)]);
+        rows.push([]);
+
+        // COGS Detail
+        rows.push(['COGS Breakdown']);
+        rows.push(['Category', 'Subcategory', 'Headcount', 'Non-Headcount', 'Total']);
+        addCategoryRows(rows, 'COGS', currentReport.cogs);
+        rows.push([]);
+
+        // OpEx Detail
+        const opexOrder = ['S&M', 'R&D', 'G&A'];
+        opexOrder.forEach(catName => {
+            if (currentReport.opex[catName]) {
+                rows.push([`${catName} Breakdown`]);
+                rows.push(['Category', 'Subcategory', 'Headcount', 'Non-Headcount', 'Total']);
+                addCategoryRows(rows, catName, currentReport.opex[catName]);
+                rows.push([]);
+            }
+        });
+    }
 
     // Convert to CSV
     const csv = rows.map(row => 
@@ -349,7 +387,8 @@ function exportToCSV() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'pl-report-' + new Date().toISOString().split('T')[0] + '.csv';
+    const filename = isQuarterly ? 'quarterly-income-statement-' : 'pl-report-';
+    a.download = filename + new Date().toISOString().split('T')[0] + '.csv';
     a.click();
     window.URL.revokeObjectURL(url);
 }
