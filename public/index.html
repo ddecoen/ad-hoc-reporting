@@ -382,10 +382,11 @@
 
         <div class="results" id="results">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-                <h2 style="color: #333;">P&L Report</h2>
+                <h2 style="color: #333;" id="reportTitle">P&L Report</h2>
                 <div>
                     <button class="btn" onclick="location.reload()">Upload New File</button>
-                    <button class="btn export-btn" onclick="exportToCSV()">Export CSV</button>
+                    <button class="btn export-btn" onclick="exportToCSV()" id="exportMainBtn">Export CSV</button>
+                    <button class="btn export-btn" onclick="exportHCAnalysisToCSV()" id="exportHCBtn" style="display: none;">Export HC Analysis</button>
                 </div>
             </div>
 

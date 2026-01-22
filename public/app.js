@@ -501,10 +501,38 @@ function displayHCAnalysis(report) {
         `;
     }
 
+    // Normalize department names and combine duplicates
+    const normalizedDepts = {};
+    Object.keys(report.departments).forEach(deptName => {
+        // Normalize name: capitalize first letter of each word
+        const normalized = deptName.split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ')
+            .replace(/&/g, '&'); // Ensure & is consistent
+        
+        if (!normalizedDepts[normalized]) {
+            normalizedDepts[normalized] = {
+                department: normalized,
+                lineItems: {},
+                total: 0
+            };
+        }
+        
+        // Merge line items
+        const dept = report.departments[deptName];
+        Object.entries(dept.lineItems).forEach(([lineItem, amount]) => {
+            if (normalizedDepts[normalized].lineItems[lineItem]) {
+                normalizedDepts[normalized].lineItems[lineItem] += amount;
+            } else {
+                normalizedDepts[normalized].lineItems[lineItem] = amount;
+            }
+        });
+    });
+    
     // Analyze each department
     const hcAnalysis = {};
-    Object.keys(report.departments).forEach(deptName => {
-        const dept = report.departments[deptName];
+    Object.keys(normalizedDepts).forEach(deptName => {
+        const dept = normalizedDepts[deptName];
         
         let hcTotal = 0;
         let totalExpenses = 0;
