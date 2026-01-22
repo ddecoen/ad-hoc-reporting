@@ -679,6 +679,18 @@ function displayHCAnalysis(report) {
     categoriesContainer.appendChild(section);
 
     results.classList.add('active');
+    
+    // Store HC analysis for CSV export
+    window.currentHCAnalysis = hcAnalysis;
+    
+    // Show HC export button, hide main export button
+    const exportMainBtn = document.getElementById('exportMainBtn');
+    const exportHCBtn = document.getElementById('exportHCBtn');
+    const reportTitle = document.getElementById('reportTitle');
+    
+    if (exportMainBtn) exportMainBtn.style.display = 'none';
+    if (exportHCBtn) exportHCBtn.style.display = 'inline-block';
+    if (reportTitle) reportTitle.textContent = 'HC vs Non-HC Analysis';
 }
 
 // Display quarterly income statement results
