@@ -689,7 +689,11 @@ function displayHCAnalysis(report) {
     const reportTitle = document.getElementById('reportTitle');
     
     if (exportMainBtn) exportMainBtn.style.display = 'none';
-    if (exportHCBtn) exportHCBtn.style.display = 'inline-block';
+    if (exportHCBtn) {
+        exportHCBtn.style.display = 'inline-block';
+        // Add click handler
+        exportHCBtn.onclick = window.exportHCAnalysisToCSV;
+    }
     if (reportTitle) reportTitle.textContent = 'HC vs Non-HC Analysis';
 }
 
