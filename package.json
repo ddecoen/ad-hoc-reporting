@@ -1,0 +1,21 @@
+{
+  "name": "netsuite-pl-analyzer",
+  "version": "1.0.0",
+  "description": "NetSuite P&L Analyzer - Transform Transaction Detail reports into comprehensive P&L statements",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'No build step needed - static HTML'",
+    "deploy": "vercel --prod",
+    "deploy:preview": "vercel"
+  },
+  "keywords": [
+    "netsuite",
+    "pl",
+    "profit-loss",
+    "financial-reporting",
+    "accounting",
+    "finance"
+  ],
+  "author": "",
+  "license": "MIT"
+}
