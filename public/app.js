@@ -795,7 +795,10 @@ function displayQuarterlyResults(report) {
         }
 
         categoriesContainer.appendChild(section);
+    });
 
+    results.classList.add('active');
+}
 
 // Export HC vs Non-HC analysis to CSV
 window.exportHCAnalysisToCSV = function() {
