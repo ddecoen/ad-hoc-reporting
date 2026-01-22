@@ -794,11 +794,16 @@ function displayQuarterlyResults(report) {
 
 
 // Export HC vs Non-HC analysis to CSV
-function exportHCAnalysisToCSV() {
+window.exportHCAnalysisToCSV = function() {
+    console.log('Export HC Analysis clicked');
+    console.log('currentHCAnalysis:', window.currentHCAnalysis);
+    
     if (!window.currentHCAnalysis) {
         alert('No HC analysis data available. Please run HC vs Non-HC Summary first.');
         return;
     }
+    
+    console.log('Starting CSV export...');
     
     const rows = [];
     
