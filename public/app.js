@@ -791,6 +791,72 @@ function displayQuarterlyResults(report) {
         }
 
         categoriesContainer.appendChild(section);
+
+
+// Export HC vs Non-HC analysis to CSV
+function exportHCAnalysisToCSV() {
+    if (!window.currentHCAnalysis) {
+        alert('No HC analysis data available. Please run HC vs Non-HC Summary first.');
+        return;
+    }
+    
+    const rows = [];
+    
+    // Header
+    rows.push(['HC vs Non-HC Breakdown']);
+    if (currentReport.companyName) {
+        rows.push(['Company', currentReport.companyName]);
+    }
+    if (currentReport.period) {
+        rows.push(['Period', currentReport.period]);
+    }
+    rows.push([]);
+    
+    // Summary table
+    rows.push(['Department', 'HC (61000 series)', 'Non-HC', 'Total']);
+    
+    Object.keys(window.currentHCAnalysis).forEach(deptName => {
+        const analysis = window.currentHCAnalysis[deptName];
+        rows.push([
+            deptName,
+            formatCurrencyExport(analysis.hc),
+            formatCurrencyExport(analysis.nonHc),
+            formatCurrencyExport(analysis.total)
+        ]);
+    });
+    
+    // Total row
+    const totalHC = Object.values(window.currentHCAnalysis).reduce((sum, a) => sum + a.hc, 0);
+    const totalNonHC = Object.values(window.currentHCAnalysis).reduce((sum, a) => sum + a.nonHc, 0);
+    const totalAll = totalHC + totalNonHC;
+    
+    rows.push([
+        'TOTAL',
+        formatCurrencyExport(totalHC),
+        formatCurrencyExport(totalNonHC),
+        formatCurrencyExport(totalAll)
+    ]);
+    
+    // Convert to CSV
+    const csv = rows.map(row => 
+        row.map(cell => {
+            const cellStr = String(cell);
+            if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+                return '"' + cellStr.replace(/"/g, '""') + '"';
+            }
+            return cellStr;
+        }).join(',')
+    ).join('\n');
+    
+    // Download
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'hc-vs-nonhc-breakdown-' + new Date().toISOString().split('T')[0] + '.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
     });
 
     results.classList.add('active');
