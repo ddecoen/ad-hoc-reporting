@@ -866,7 +866,3 @@ window.exportHCAnalysisToCSV = function() {
     a.click();
     window.URL.revokeObjectURL(url);
 }
-    });
-
-    results.classList.add('active');
-}
